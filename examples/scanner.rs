@@ -1,5 +1,5 @@
 use anyhow::Result;
-use m365::{ScannerEvent, ScooterScanner};
+use ninebot_ble::{ScannerEvent, ScooterScanner};
 use tracing::Level;
 use tracing_subscriber;
 use tracing_subscriber::fmt::format::FmtSpan;

@@ -124,7 +124,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     if let Some(r) = &resp {
         if r.as_slice() == RCV_SEND_DID {
-            println!("✓ Device wants us to send DID (Device ID)\n");
+            println!("??Device wants us to send DID (Device ID)\n");
         } else {
             println!("? Unknown response, continuing...\n");
         }

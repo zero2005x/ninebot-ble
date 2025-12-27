@@ -10,7 +10,8 @@ use tokio::time;
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use m365::{AuthToken, ConnectionHelper, LoginRequest, MiSession, ScooterScanner, TailLight};
+use ninebot_ble::{AuthToken, ConnectionHelper, LoginRequest, MiSession, ScooterScanner, TailLight};
+use ninebot_ble::session::commands::{ScooterCommand, Direction, ReadWrite, Attribute};
 
 // Data structures for logging
 #[derive(Debug, Clone)]
@@ -431,10 +432,10 @@ async fn main() -> Result<()> {
                         io::stdout().flush().unwrap();
                         // Headlight: 0x05, 0x00=off, 0x01=on
                         let payload = vec![if on { 0x01 } else { 0x00 }, 0x00];
-                        let cmd = m365::session::commands::ScooterCommand {
-                            direction: m365::session::commands::Direction::MasterToMotor,
-                            read_write: m365::session::commands::ReadWrite::Write,
-                            attribute: m365::session::commands::Attribute::TailLight, // Headlight shares TailLight attr
+                        let cmd = ScooterCommand {
+                            direction: Direction::MasterToMotor,
+                            read_write: ReadWrite::Write,
+                            attribute: Attribute::TailLight, // Headlight shares TailLight attr
                             payload
                         };
                         match session.send(&cmd).await {
@@ -448,10 +449,10 @@ async fn main() -> Result<()> {
                         print!("\n🔋 Powering off scooter...");
                         io::stdout().flush().unwrap();
                         let payload = vec![0x00, 0x00];
-                        let cmd = m365::session::commands::ScooterCommand {
-                            direction: m365::session::commands::Direction::MasterToMotor,
-                            read_write: m365::session::commands::ReadWrite::Write,
-                            attribute: m365::session::commands::Attribute::GeneralInfo, // Power off: 0x68 00 00
+                        let cmd = ScooterCommand {
+                            direction: Direction::MasterToMotor,
+                            read_write: ReadWrite::Write,
+                            attribute: Attribute::GeneralInfo, // Power off: 0x68 00 00
                             payload: vec![0x68, 0x00, 0x00]
                         };
                         match session.send(&cmd).await {
@@ -464,10 +465,10 @@ async fn main() -> Result<()> {
                     Command::Reboot => {
                         print!("\n🔄 Rebooting scooter...");
                         io::stdout().flush().unwrap();
-                        let cmd = m365::session::commands::ScooterCommand {
-                            direction: m365::session::commands::Direction::MasterToMotor,
-                            read_write: m365::session::commands::ReadWrite::Write,
-                            attribute: m365::session::commands::Attribute::GeneralInfo, // Reboot: 0x69 00 00
+                        let cmd = ScooterCommand {
+                            direction: Direction::MasterToMotor,
+                            read_write: ReadWrite::Write,
+                            attribute: Attribute::GeneralInfo, // Reboot: 0x69 00 00
                             payload: vec![0x69, 0x00, 0x00]
                         };
                         match session.send(&cmd).await {
@@ -481,10 +482,10 @@ async fn main() -> Result<()> {
                         print!("\n🔒 {} scooter...", if on { "Locking" } else { "Unlocking" });
                         io::stdout().flush().unwrap();
                         let payload = vec![if on { 0x01 } else { 0x00 }, 0x00];
-                        let cmd = m365::session::commands::ScooterCommand {
-                            direction: m365::session::commands::Direction::MasterToMotor,
-                            read_write: m365::session::commands::ReadWrite::Write,
-                            attribute: m365::session::commands::Attribute::GeneralInfo, // Lock: 0x31 01 00, Unlock: 0x31 00 00
+                        let cmd = ScooterCommand {
+                            direction: Direction::MasterToMotor,
+                            read_write: ReadWrite::Write,
+                            attribute: Attribute::GeneralInfo, // Lock: 0x31 01 00, Unlock: 0x31 00 00
                             payload: vec![0x31, if on { 0x01 } else { 0x00 }, 0x00]
                         };
                         match session.send(&cmd).await {
@@ -503,10 +504,10 @@ async fn main() -> Result<()> {
                         };
                         print!("\n🚦 Setting speed mode to {}...", label);
                         io::stdout().flush().unwrap();
-                        let cmd = m365::session::commands::ScooterCommand {
-                            direction: m365::session::commands::Direction::MasterToMotor,
-                            read_write: m365::session::commands::ReadWrite::Write,
-                            attribute: m365::session::commands::Attribute::GeneralInfo, // Speed mode: 0x2E XX 00
+                        let cmd = ScooterCommand {
+                            direction: Direction::MasterToMotor,
+                            read_write: ReadWrite::Write,
+                            attribute: Attribute::GeneralInfo, // Speed mode: 0x2E XX 00
                             payload: vec![0x2E, mode, 0x00]
                         };
                         match session.send(&cmd).await {

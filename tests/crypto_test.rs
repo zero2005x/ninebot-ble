@@ -1,4 +1,4 @@
-use m365::mi_crypto;
+use ninebot_ble::mi_crypto;
 use p256::{ecdh::EphemeralSecret, EncodedPoint};
 use rand_core::OsRng;
 

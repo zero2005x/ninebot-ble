@@ -11,7 +11,7 @@ use tokio::fs::File;
 use tokio::io::{AsyncWriteExt, BufWriter};
 use tracing_subscriber;
 
-use m365::{
+use ninebot_ble::{
     AuthToken, ConnectionHelper, RegistrationError, RegistrationRequest, ScannerEvent,
     ScooterScanner,
 };

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use btleplug::api::BDAddr;
-use m365::{AuthToken, ConnectionHelper, LoginRequest, MiSession, ScooterScanner};
+use ninebot_ble::{AuthToken, ConnectionHelper, LoginRequest, MiSession, ScooterScanner};
 use std::env;
 use std::path::Path;
 use std::time::Duration;

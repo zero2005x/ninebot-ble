@@ -155,7 +155,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             loop {
                 tokio::select! {
                     Some(data) = notification_stream.next() => {
-                        println!("  ✓ RESPONSE from {:?}: {:02X?}", data.uuid, data.value);
+                        println!("  ??RESPONSE from {:?}: {:02X?}", data.uuid, data.value);
                         println!("    As string: {:?}", String::from_utf8_lossy(&data.value));
                     }
                     _ = &mut timeout => {

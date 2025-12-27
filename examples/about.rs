@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use btleplug::api::BDAddr;
-use m365::{AuthToken, ConnectionHelper, LoginRequest, ScooterScanner};
+use ninebot_ble::{AuthToken, ConnectionHelper, LoginRequest, ScooterScanner};
 use std::env;
 use std::path::Path;
 use tokio::fs::File;

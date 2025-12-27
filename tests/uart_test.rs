@@ -1,5 +1,5 @@
 use hex_literal::hex;
-use m365::mi_crypto::{crc16, decrypt_uart, encrypt_uart, EncryptionKey};
+use ninebot_ble::mi_crypto::{crc16, decrypt_uart, encrypt_uart, EncryptionKey};
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 

@@ -1,6 +1,6 @@
 use hex_literal::hex;
 
-use m365::{BatteryInfo, MotorInfo, Payload};
+use ninebot_ble::{BatteryInfo, MotorInfo, Payload};
 use std::time::Duration;
 
 #[test]

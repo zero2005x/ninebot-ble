@@ -6,7 +6,7 @@ use tokio::time;
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use m365::{AuthToken, ConnectionHelper, LoginRequest, MiSession, ScooterScanner};
+use ninebot_ble::{AuthToken, ConnectionHelper, LoginRequest, MiSession, ScooterScanner};
 
 async fn load_token() -> Result<AuthToken> {
     let path = std::path::Path::new(".mi-token");

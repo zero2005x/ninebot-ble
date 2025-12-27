@@ -10,7 +10,7 @@ use tracing::Level;
 use tracing_subscriber;
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use m365::{AuthToken, ConnectionHelper, LoginRequest, ScooterScanner, TailLight};
+use ninebot_ble::{AuthToken, ConnectionHelper, LoginRequest, ScooterScanner, TailLight};
 
 async fn load_token() -> Result<AuthToken> {
     let path = Path::new(".mi-token");
