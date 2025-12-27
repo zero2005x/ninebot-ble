@@ -22,13 +22,13 @@ pub struct MiProtocol {
   upnp: Characteristic,
   tx: Characteristic,
   rx: Characteristic,
-  stream: Pin<Box<dyn Stream<Item = ValueNotification>>>,
+  stream: Pin<Box<dyn Stream<Item = ValueNotification> + Send>>,
 }
 
 impl MiProtocol {
   pub async fn new(device: &Peripheral) -> Result<Self> {
     let (avdtp, upnp, tx, rx) = setup_channels(&device).await?;
-    let stream : Pin<Box<dyn Stream<Item = ValueNotification>>> = device.notifications().await
+    let stream : Pin<Box<dyn Stream<Item = ValueNotification> + Send>> = device.notifications().await
       .with_context(|| format!("Could not load notifications stream"))?;
     let device = device.clone();
 

@@ -24,6 +24,127 @@ This library uses [btleplug](https://crates.io/crates/btleplug) for cross-platfo
 - macOS
 - Linux
 - iOS
+- **Android** (via JNI)
+
+## Android Integration
+
+### Prerequisites
+
+1. **Rust Toolchain**: Rust installed
+2. **Android NDK**: Installed via Android Studio
+3. **cargo-ndk**: Cargo plugin for Android compilation
+
+### Setup Environment
+
+Install `cargo-ndk` and required Android targets:
+
+```bash
+cargo install cargo-ndk
+rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
+```
+
+### Build Library
+
+Compile the library for Android architectures:
+
+```bash
+# Build Release version (recommended)
+cargo ndk -t armeabi-v7a -t arm64-v8a -t x86 -t x86_64 -o ./jniLibs build --release
+```
+
+This generates `.so` files in the `jniLibs` directory (e.g., `arm64-v8a/libninebot_ble.so`).
+
+### Android Studio Integration
+
+1. **Copy Libraries**: Copy the generated `jniLibs` folder to your Android project's `app/src/main/` directory.
+
+2. **Create JNI Class**: Create a corresponding Kotlin/Java class. The native method names must match those in `src/android_api.rs`. Currently configured for package `com.ninebot.ble` with class name `NativeLib`.
+
+#### Kotlin Example (`NativeLib.kt`)
+
+```kotlin
+package com.ninebot.ble
+
+class NativeLib {
+    companion object {
+        init {
+            // Load the Rust compiled library (name matches Cargo.toml)
+            System.loadLibrary("ninebot_ble")
+        }
+    }
+
+    /**
+     * Initialize and start scanning
+     * @return Status message
+     */
+    external fun startScan(): String
+
+    /**
+     * Get list of scanned devices
+     * @return Formatted as "name,mac;name,mac;" string
+     */
+    external fun getDevices(): String
+
+    /**
+     * Connect to specified device
+     * @param macAddress Bluetooth MAC address
+     * @return Connection status
+     */
+    external fun connect(macAddress: String): String
+
+    /**
+     * Get current speed (km/h)
+     */
+    external fun getCurrentSpeed(): String
+
+    /**
+     * Get average speed (km/h)
+     */
+    external fun getAverageSpeed(): String
+
+    /**
+     * Get battery voltage (V)
+     */
+    external fun getBatteryVoltage(): String
+
+    /**
+     * Get battery current (A)
+     */
+    external fun getBatteryAmperage(): String
+
+    /**
+     * Get battery percentage
+     */
+    external fun getBatteryPercentage(): String
+
+    /**
+     * Get complete battery information (JSON)
+     */
+    external fun getBatteryInfo(): String
+
+    /**
+     * Get complete motor information (JSON)
+     */
+    external fun getMotorInfo(): String
+}
+```
+
+### Important Notes
+
+1. **Permissions**: Your Android app needs Bluetooth permissions in `AndroidManifest.xml`:
+
+   ```xml
+   <uses-permission android:name="android.permission.BLUETOOTH" />
+   <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+   <!-- Android 12+ -->
+   <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+   <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+   ```
+
+2. **btleplug Initialization**: The Rust code includes `JNI_OnLoad` to initialize btleplug. Ensure the library is loaded before calling any functions.
+
+3. **Threading**: Current native methods are blocking. Call them in background threads (`Dispatchers.IO`) or coroutines to avoid ANR (Application Not Responding).
 
 ## Supported Scooters
 
@@ -44,7 +165,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ninebot-ble = "0.1"
+ninebot-ble = "0.1.2"
 ```
 
 ### Examples
@@ -244,6 +365,7 @@ ninebot-ble/
 │   ├── login.rs            # Authentication
 │   ├── mi_crypto.rs        # Cryptographic operations
 │   ├── consts.rs           # Constants
+│   ├── android_api.rs      # Android JNI interface
 │   └── session/            # Session commands
 │       ├── mod.rs          # Module exports
 │       ├── mi_session.rs   # Session management

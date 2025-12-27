@@ -1,3 +1,5 @@
+// ninebot-ble/src/consts.rs
+
 use core::fmt::Debug;
 use uuid::Uuid;
 use btleplug::api::ValueNotification;
@@ -6,20 +8,11 @@ use pretty_hex::*;
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
 pub enum Registers {
-  /**
-   * Universal Asynchronous Receiver and Transmitter
-   */
   UART,
   TX,
   RX,
   AUTH,
-  /**
-   * Universal Plug and Play
-   */
   UPNP,
-  /**
-   * Audio/video data transport protocol
-   */
   AVDTP
 }
 
@@ -42,21 +35,16 @@ impl Registers {
 pub enum MiCommands {
   CMD_GET_INFO,
   CMD_SET_KEY,
-
   CMD_AUTH,
   CMD_LOGIN,
-
   CMD_SEND_DATA,
   CMD_SEND_DID,
   CMD_SEND_KEY,
   CMD_SEND_INFO,
-
   RCV_RDY,
   RCV_OK,
-
   RCV_AUTH_OK,
   RCV_AUTH_ERR,
-
   RCV_LOGIN_OK,
   RCV_LOGIN_ERR,
 }
@@ -84,7 +72,6 @@ impl MiCommands {
 
 impl Debug for MiCommands {
   fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
-    //TODO: make this DRY
     match self {
       Self::CMD_GET_INFO => write!(fmt, "CMD_GET_INFO {}", self.to_bytes().hex_dump()),
       Self::CMD_SET_KEY => write!(fmt, "CMD_SET_KEY {}", self.to_bytes().hex_dump()),
@@ -107,34 +94,13 @@ impl Debug for MiCommands {
 impl TryFrom<ValueNotification> for MiCommands {
   type Error = &'static str;
   fn try_from(data: ValueNotification) -> std::result::Result<Self, <Self as std::convert::TryFrom<ValueNotification>>::Error> {
-    if data.value == Self::RCV_RDY.to_bytes() {
-      return Ok(Self::RCV_RDY)
-    }
-
-    if data.value == Self::CMD_SEND_DATA.to_bytes() {
-      return Ok(Self::CMD_SEND_DATA)
-    }
-
-    if data.value == Self::RCV_OK.to_bytes() {
-      return Ok(Self::RCV_OK)
-    }
-
-    if data.value == Self::RCV_AUTH_OK.to_bytes() {
-      return Ok(Self::RCV_AUTH_OK)
-    }
-
-    if data.value == Self::RCV_AUTH_ERR.to_bytes() {
-      return Ok(Self::RCV_AUTH_ERR)
-    }
-
-    if data.value == Self::RCV_LOGIN_OK.to_bytes() {
-      return Ok(Self::RCV_LOGIN_OK)
-    }
-
-    if data.value == Self::RCV_LOGIN_ERR.to_bytes() {
-      return Ok(Self::RCV_LOGIN_ERR)
-    }
-
+    if data.value == Self::RCV_RDY.to_bytes() { return Ok(Self::RCV_RDY) }
+    if data.value == Self::CMD_SEND_DATA.to_bytes() { return Ok(Self::CMD_SEND_DATA) }
+    if data.value == Self::RCV_OK.to_bytes() { return Ok(Self::RCV_OK) }
+    if data.value == Self::RCV_AUTH_OK.to_bytes() { return Ok(Self::RCV_AUTH_OK) }
+    if data.value == Self::RCV_AUTH_ERR.to_bytes() { return Ok(Self::RCV_AUTH_ERR) }
+    if data.value == Self::RCV_LOGIN_OK.to_bytes() { return Ok(Self::RCV_LOGIN_OK) }
+    if data.value == Self::RCV_LOGIN_ERR.to_bytes() { return Ok(Self::RCV_LOGIN_ERR) }
     Err("This is not response")
   }
 }
