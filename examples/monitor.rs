@@ -1,12 +1,15 @@
-use anyhow::Result;
-use btleplug::api::BDAddr;
 use std::io::{self, Write};
 use std::time::Duration;
 use tokio::time;
+use btleplug::api::BDAddr;
+use anyhow::Result;
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use ninebot_ble::{AuthToken, ConnectionHelper, LoginRequest, MiSession, ScooterScanner};
+use m365::{
+    ScooterScanner, ConnectionHelper, LoginRequest, MiSession,
+    AuthToken
+};
 
 async fn load_token() -> Result<AuthToken> {
     let path = std::path::Path::new(".mi-token");
@@ -24,41 +27,17 @@ async fn print_status(session: &mut MiSession) -> Result<()> {
     // Read motor info
     match session.motor_info().await {
         Ok(info) => {
-            println!(
-                "║  🔋 Battery:     {:>3}%                                        ║",
-                info.battery_percent
-            );
-            println!(
-                "║  🚀 Speed:       {:>5.1} km/h                                   ║",
-                info.speed_kmh
-            );
-            println!(
-                "║  📊 Avg Speed:   {:>5.1} km/h                                   ║",
-                info.speed_average_kmh
-            );
-            println!(
-                "║  📍 Trip:        {:>7} m                                    ║",
-                info.trip_distance_m
-            );
-            println!(
-                "║  🛣️  Total:       {:>7} m ({:.1} km)                       ║",
-                info.total_distance_m,
-                info.total_distance_m as f32 / 1000.0
-            );
-            println!(
-                "║  🌡️  Temp:        {:>5.1}°C                                     ║",
-                info.frame_temperature
-            );
-            println!(
-                "║  ⏱️  Uptime:      {:?}                                    ║",
-                info.uptime
-            );
+            println!("║  🔋 Battery:     {:>3}%                                        ║", info.battery_percent);
+            println!("║  🚀 Speed:       {:>5.1} km/h                                   ║", info.speed_kmh);
+            println!("║  📊 Avg Speed:   {:>5.1} km/h                                   ║", info.speed_average_kmh);
+            println!("║  📍 Trip:        {:>7} m                                    ║", info.trip_distance_m);
+            println!("║  🛣️  Total:       {:>7} m ({:.1} km)                       ║", 
+                info.total_distance_m, info.total_distance_m as f32 / 1000.0);
+            println!("║  🌡️  Temp:        {:>5.1}°C                                     ║", info.frame_temperature);
+            println!("║  ⏱️  Uptime:      {:?}                                    ║", info.uptime);
         }
         Err(e) => {
-            println!(
-                "║  ⚠️  Motor info error: {:?}                              ║",
-                e
-            );
+            println!("║  ⚠️  Motor info error: {:?}                              ║", e);
         }
     }
 
@@ -67,28 +46,13 @@ async fn print_status(session: &mut MiSession) -> Result<()> {
     // Read battery info
     match session.battery_info().await {
         Ok(info) => {
-            println!(
-                "║  🔌 Voltage:     {:>5.2} V                                     ║",
-                info.voltage
-            );
-            println!(
-                "║  ⚡ Current:     {:>5.2} A                                     ║",
-                info.current
-            );
-            println!(
-                "║  📦 Capacity:    {:>5} mAh                                   ║",
-                info.capacity
-            );
-            println!(
-                "║  🌡️  Batt Temp:   {}°C / {}°C                                  ║",
-                info.temperature_1, info.temperature_2
-            );
+            println!("║  🔌 Voltage:     {:>5.2} V                                     ║", info.voltage);
+            println!("║  ⚡ Current:     {:>5.2} A                                     ║", info.current);
+            println!("║  📦 Capacity:    {:>5} mAh                                   ║", info.capacity);
+            println!("║  🌡️  Batt Temp:   {}°C / {}°C                                  ║", info.temperature_1, info.temperature_2);
         }
         Err(e) => {
-            println!(
-                "║  ⚠️  Battery info error: {:?}                            ║",
-                e
-            );
+            println!("║  ⚠️  Battery info error: {:?}                            ║", e);
         }
     }
 
@@ -97,10 +61,7 @@ async fn print_status(session: &mut MiSession) -> Result<()> {
     // Read distance left
     match session.distance_left().await {
         Ok(km) => {
-            println!(
-                "║  📍 Range Left:  {:>5.1} km                                    ║",
-                km
-            );
+            println!("║  📍 Range Left:  {:>5.1} km                                    ║", km);
         }
         Err(_) => {}
     }
@@ -158,20 +119,20 @@ async fn main() -> Result<()> {
 
     // Main loop - read data every second
     let mut interval = time::interval(Duration::from_secs(1));
-
+    
     loop {
         interval.tick().await;
-
+        
         if let Err(e) = print_status(&mut session).await {
             eprintln!("Error reading status: {}", e);
-
+            
             // Try to reconnect
             println!("🔄 Attempting to reconnect...");
             if let Err(e) = connection.reconnect().await {
                 eprintln!("❌ Reconnection failed: {}", e);
                 break;
             }
-
+            
             // Re-login
             match login(&device, &token).await {
                 Ok(new_session) => {
@@ -188,6 +149,6 @@ async fn main() -> Result<()> {
 
     println!("👋 Disconnecting...");
     connection.disconnect().await?;
-
+    
     Ok(())
 }

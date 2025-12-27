@@ -1,17 +1,19 @@
-use anyhow::Result;
-use btleplug::api::BDAddr;
-use chrono::{DateTime, Local};
-use std::io::{self, BufRead, Write};
+use std::io::{self, Write, BufRead};
+use std::time::Duration;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::mpsc;
 use tokio::time;
+use tokio::sync::mpsc;
+use btleplug::api::BDAddr;
+use anyhow::Result;
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
+use chrono::{Local, DateTime};
 
-use ninebot_ble::{AuthToken, ConnectionHelper, LoginRequest, MiSession, ScooterScanner, TailLight};
-use ninebot_ble::session::commands::{ScooterCommand, Direction, ReadWrite, Attribute};
+use m365::{
+    ScooterScanner, ConnectionHelper, LoginRequest, MiSession,
+    AuthToken, TailLight
+};
 
 // Data structures for logging
 #[derive(Debug, Clone)]
@@ -36,7 +38,7 @@ impl ScooterStatus {
     fn to_csv_header() -> &'static str {
         "timestamp,battery_percent,speed_kmh,avg_speed_kmh,trip_m,total_m,frame_temp_c,uptime_s,voltage_v,current_a,capacity_mah,batt_temp_1_c,batt_temp_2_c,range_km"
     }
-
+    
     fn to_csv_row(&self) -> String {
         format!(
             "{},{},{:.1},{:.1},{},{},{:.1},{},{:.2},{:.2},{},{},{},{:.1}",
@@ -64,12 +66,6 @@ enum Command {
     Status,
     Cruise(bool),
     TailLight(TailLight),
-    Headlight(bool),
-    Kers(u8),
-    PowerOff,
-    Reboot,
-    Lock(bool),
-    SpeedMode(u8),
     Log(bool),
     Interval(u64),
     Unknown(String),
@@ -80,66 +76,8 @@ fn parse_command(input: &str) -> Command {
     if parts.is_empty() {
         return Command::Unknown(String::new());
     }
+    
     match parts[0].to_lowercase().as_str() {
-        "headlight" | "head" => {
-            if parts.len() > 1 {
-                match parts[1].to_lowercase().as_str() {
-                    "on" | "1" | "true" => Command::Headlight(true),
-                    "off" | "0" | "false" => Command::Headlight(false),
-                    _ => Command::Unknown("Usage: headlight <on|off>".to_string()),
-                }
-            } else {
-                Command::Unknown("Usage: headlight <on|off>".to_string())
-            }
-        }
-        "poweroff" | "shutdown" => Command::PowerOff,
-        "reboot" => Command::Reboot,
-        "lock" => {
-            if parts.len() > 1 {
-                match parts[1].to_lowercase().as_str() {
-                    "on" | "1" | "true" => Command::Lock(true),
-                    "off" | "0" | "false" => Command::Lock(false),
-                    _ => Command::Unknown("Usage: lock <on|off>".to_string()),
-                }
-            } else {
-                Command::Unknown("Usage: lock <on|off>".to_string())
-            }
-        }
-        "speedmode" | "mode" => {
-            if parts.len() > 1 {
-                let mode = match parts[1].to_lowercase().as_str() {
-                    "eco" | "1" => Some(1),
-                    "drive" | "2" => Some(2),
-                    "sport" | "3" => Some(3),
-                    _ => parts[1].parse::<u8>().ok().filter(|&v| v >= 1 && v <= 3),
-                };
-                if let Some(m) = mode {
-                    Command::SpeedMode(m)
-                } else {
-                    Command::Unknown("Usage: speedmode <eco|drive|sport|1|2|3>".to_string())
-                }
-            } else {
-                Command::Unknown("Usage: speedmode <eco|drive|sport|1|2|3>".to_string())
-            }
-        }
-        "kers" => {
-            if parts.len() > 1 {
-                let level = match parts[1].to_lowercase().as_str() {
-                    "off" | "0" => Some(0),
-                    "weak" | "1" => Some(1),
-                    "medium" | "2" => Some(2),
-                    "strong" | "3" => Some(3),
-                    _ => parts[1].parse::<u8>().ok().filter(|&v| v <= 3),
-                };
-                if let Some(lvl) = level {
-                    Command::Kers(lvl)
-                } else {
-                    Command::Unknown("Usage: kers <off|weak|medium|strong|0|1|2|3>".to_string())
-                }
-            } else {
-                Command::Unknown("Usage: kers <off|weak|medium|strong|0|1|2|3>".to_string())
-            }
-        }
         "q" | "quit" | "exit" => Command::Quit,
         "h" | "help" | "?" => Command::Help,
         "s" | "status" => Command::Status,
@@ -148,7 +86,7 @@ fn parse_command(input: &str) -> Command {
                 match parts[1].to_lowercase().as_str() {
                     "on" | "1" | "true" => Command::Cruise(true),
                     "off" | "0" | "false" => Command::Cruise(false),
-                    _ => Command::Unknown(format!("Invalid cruise value: {}", parts[1])),
+                    _ => Command::Unknown(format!("Invalid cruise value: {}", parts[1]))
                 }
             } else {
                 Command::Unknown("Usage: cruise <on|off>".to_string())
@@ -160,10 +98,7 @@ fn parse_command(input: &str) -> Command {
                     "off" | "0" => Command::TailLight(TailLight::Off),
                     "brake" | "1" => Command::TailLight(TailLight::OnBrake),
                     "on" | "always" | "2" => Command::TailLight(TailLight::Always),
-                    _ => Command::Unknown(format!(
-                        "Invalid light mode: {}. Use: off, brake, always",
-                        parts[1]
-                    )),
+                    _ => Command::Unknown(format!("Invalid light mode: {}. Use: off, brake, always", parts[1]))
                 }
             } else {
                 Command::Unknown("Usage: light <off|brake|always>".to_string())
@@ -174,7 +109,7 @@ fn parse_command(input: &str) -> Command {
                 match parts[1].to_lowercase().as_str() {
                     "on" | "start" | "1" => Command::Log(true),
                     "off" | "stop" | "0" => Command::Log(false),
-                    _ => Command::Unknown(format!("Invalid log value: {}", parts[1])),
+                    _ => Command::Unknown(format!("Invalid log value: {}", parts[1]))
                 }
             } else {
                 Command::Unknown("Usage: log <on|off>".to_string())
@@ -184,13 +119,13 @@ fn parse_command(input: &str) -> Command {
             if parts.len() > 1 {
                 match parts[1].parse::<u64>() {
                     Ok(secs) if secs >= 1 => Command::Interval(secs),
-                    _ => Command::Unknown("Interval must be >= 1 second".to_string()),
+                    _ => Command::Unknown("Interval must be >= 1 second".to_string())
                 }
             } else {
                 Command::Unknown("Usage: interval <seconds>".to_string())
             }
         }
-        _ => Command::Unknown(format!("Unknown command: {}", parts[0])),
+        _ => Command::Unknown(format!("Unknown command: {}", parts[0]))
     }
 }
 
@@ -200,13 +135,7 @@ fn print_help() {
     println!("╠══════════════════════════════════════════════════════════════╣");
     println!("║  status, s          - Show current status                    ║");
     println!("║  cruise <on|off>    - Enable/disable cruise control          ║");
-    println!("║  kers <level>       - Set KERS (off/weak/medium/strong/0-3)  ║");
     println!("║  light <mode>       - Set tail light (off/brake/always)      ║");
-    println!("║  headlight <on|off> - Set headlight                          ║");
-    println!("║  poweroff           - Power off scooter                      ║");
-    println!("║  reboot             - Reboot scooter                         ║");
-    println!("║  lock <on|off>      - Lock/unlock scooter                    ║");
-    println!("║  speedmode <mode>   - Set speed mode (eco/drive/sport/1-3)   ║");
     println!("║  log <on|off>       - Start/stop CSV logging                 ║");
     println!("║  interval <secs>    - Set update interval (default: 1s)      ║");
     println!("║  help, h, ?         - Show this help                         ║");
@@ -218,7 +147,7 @@ async fn read_status(session: &mut MiSession) -> Result<ScooterStatus> {
     let motor = session.motor_info().await?;
     let battery = session.battery_info().await?;
     let range = session.distance_left().await.unwrap_or(0.0);
-
+    
     Ok(ScooterStatus {
         timestamp: Local::now(),
         battery_percent: motor.battery_percent,
@@ -240,43 +169,18 @@ async fn read_status(session: &mut MiSession) -> Result<ScooterStatus> {
 fn print_status(status: &ScooterStatus, logging: bool, interval: u64) {
     print!("\x1B[2J\x1B[1;1H"); // Clear screen
     println!("╔══════════════════════════════════════════════════════════════╗");
-    println!(
-        "║       M365 Scooter Controller - {}        ║",
-        status.timestamp.format("%Y-%m-%d %H:%M:%S")
-    );
+    println!("║       M365 Scooter Controller - {}        ║", status.timestamp.format("%Y-%m-%d %H:%M:%S"));
     println!("╠══════════════════════════════════════════════════════════════╣");
-    println!(
-        "║  🔋 Battery:     {:>3}%          📍 Range:    {:>5.1} km        ║",
-        status.battery_percent, status.range_km
-    );
-    println!(
-        "║  🚀 Speed:       {:>5.1} km/h     📊 Avg:      {:>5.1} km/h      ║",
-        status.speed_kmh, status.avg_speed_kmh
-    );
-    println!(
-        "║  📍 Trip:        {:>6} m       🛣️  Total:    {:>6.1} km       ║",
-        status.trip_m,
-        status.total_m as f32 / 1000.0
-    );
+    println!("║  🔋 Battery:     {:>3}%          📍 Range:    {:>5.1} km        ║", status.battery_percent, status.range_km);
+    println!("║  🚀 Speed:       {:>5.1} km/h     📊 Avg:      {:>5.1} km/h      ║", status.speed_kmh, status.avg_speed_kmh);
+    println!("║  📍 Trip:        {:>6} m       🛣️  Total:    {:>6.1} km       ║", status.trip_m, status.total_m as f32 / 1000.0);
     println!("╠══════════════════════════════════════════════════════════════╣");
-    println!(
-        "║  🔌 Voltage:     {:>5.2} V        ⚡ Current:  {:>5.2} A        ║",
-        status.voltage, status.current
-    );
-    println!(
-        "║  📦 Capacity:    {:>5} mAh      🌡️  Batt:     {}°C / {}°C      ║",
-        status.capacity, status.batt_temp_1, status.batt_temp_2
-    );
-    println!(
-        "║  🌡️  Frame:      {:>5.1}°C        ⏱️  Uptime:   {:>5}s          ║",
-        status.frame_temp, status.uptime_s
-    );
+    println!("║  🔌 Voltage:     {:>5.2} V        ⚡ Current:  {:>5.2} A        ║", status.voltage, status.current);
+    println!("║  📦 Capacity:    {:>5} mAh      🌡️  Batt:     {}°C / {}°C      ║", status.capacity, status.batt_temp_1, status.batt_temp_2);
+    println!("║  🌡️  Frame:      {:>5.1}°C        ⏱️  Uptime:   {:>5}s          ║", status.frame_temp, status.uptime_s);
     println!("╠══════════════════════════════════════════════════════════════╣");
-    println!(
-        "║  📝 Logging: {:>3}    ⏰ Interval: {}s    Type 'help' for cmds  ║",
-        if logging { "ON" } else { "OFF" },
-        interval
-    );
+    println!("║  📝 Logging: {:>3}    ⏰ Interval: {}s    Type 'help' for cmds  ║", 
+        if logging { "ON" } else { "OFF" }, interval);
     println!("╚══════════════════════════════════════════════════════════════╝");
     print!("> ");
     io::stdout().flush().unwrap();
@@ -354,7 +258,7 @@ async fn main() -> Result<()> {
 
     // Main loop
     let mut interval = time::interval(Duration::from_secs(interval_secs));
-
+    
     while running.load(Ordering::Relaxed) {
         tokio::select! {
             _ = interval.tick() => {
@@ -366,7 +270,7 @@ async fn main() -> Result<()> {
                                 writeln!(file, "{}", status.to_csv_row()).ok();
                             }
                         }
-
+                        
                         print_status(&status, logging, interval_secs);
                         last_status = Some(status);
                     }
@@ -389,7 +293,7 @@ async fn main() -> Result<()> {
                     }
                 }
             }
-
+            
             Some(cmd) = cmd_rx.recv() => {
                 match cmd {
                     Command::Quit => {
@@ -421,113 +325,6 @@ async fn main() -> Result<()> {
                         print!("\n💡 Setting tail light to {:?}...", mode);
                         io::stdout().flush().unwrap();
                         match session.set_tail_light(mode).await {
-                            Ok(_) => println!(" ✅ Done!"),
-                            Err(e) => println!(" ❌ Failed: {}", e),
-                        }
-                        print!("> ");
-                        io::stdout().flush().unwrap();
-                    }
-                    Command::Headlight(on) => {
-                        print!("\n💡 Setting headlight {}...", if on { "ON" } else { "OFF" });
-                        io::stdout().flush().unwrap();
-                        // Headlight: 0x05, 0x00=off, 0x01=on
-                        let payload = vec![if on { 0x01 } else { 0x00 }, 0x00];
-                        let cmd = ScooterCommand {
-                            direction: Direction::MasterToMotor,
-                            read_write: ReadWrite::Write,
-                            attribute: Attribute::TailLight, // Headlight shares TailLight attr
-                            payload
-                        };
-                        match session.send(&cmd).await {
-                            Ok(_) => println!(" ✅ Done!"),
-                            Err(e) => println!(" ❌ Failed: {}", e),
-                        }
-                        print!("> ");
-                        io::stdout().flush().unwrap();
-                    }
-                    Command::PowerOff => {
-                        print!("\n🔋 Powering off scooter...");
-                        io::stdout().flush().unwrap();
-                        let payload = vec![0x00, 0x00];
-                        let cmd = ScooterCommand {
-                            direction: Direction::MasterToMotor,
-                            read_write: ReadWrite::Write,
-                            attribute: Attribute::GeneralInfo, // Power off: 0x68 00 00
-                            payload: vec![0x68, 0x00, 0x00]
-                        };
-                        match session.send(&cmd).await {
-                            Ok(_) => println!(" ✅ Done!"),
-                            Err(e) => println!(" ❌ Failed: {}", e),
-                        }
-                        print!("> ");
-                        io::stdout().flush().unwrap();
-                    }
-                    Command::Reboot => {
-                        print!("\n🔄 Rebooting scooter...");
-                        io::stdout().flush().unwrap();
-                        let cmd = ScooterCommand {
-                            direction: Direction::MasterToMotor,
-                            read_write: ReadWrite::Write,
-                            attribute: Attribute::GeneralInfo, // Reboot: 0x69 00 00
-                            payload: vec![0x69, 0x00, 0x00]
-                        };
-                        match session.send(&cmd).await {
-                            Ok(_) => println!(" ✅ Done!"),
-                            Err(e) => println!(" ❌ Failed: {}", e),
-                        }
-                        print!("> ");
-                        io::stdout().flush().unwrap();
-                    }
-                    Command::Lock(on) => {
-                        print!("\n🔒 {} scooter...", if on { "Locking" } else { "Unlocking" });
-                        io::stdout().flush().unwrap();
-                        let payload = vec![if on { 0x01 } else { 0x00 }, 0x00];
-                        let cmd = ScooterCommand {
-                            direction: Direction::MasterToMotor,
-                            read_write: ReadWrite::Write,
-                            attribute: Attribute::GeneralInfo, // Lock: 0x31 01 00, Unlock: 0x31 00 00
-                            payload: vec![0x31, if on { 0x01 } else { 0x00 }, 0x00]
-                        };
-                        match session.send(&cmd).await {
-                            Ok(_) => println!(" ✅ Done!"),
-                            Err(e) => println!(" ❌ Failed: {}", e),
-                        }
-                        print!("> ");
-                        io::stdout().flush().unwrap();
-                    }
-                    Command::SpeedMode(mode) => {
-                        let label = match mode {
-                            1 => "ECO",
-                            2 => "DRIVE",
-                            3 => "SPORT",
-                            _ => "UNKNOWN"
-                        };
-                        print!("\n🚦 Setting speed mode to {}...", label);
-                        io::stdout().flush().unwrap();
-                        let cmd = ScooterCommand {
-                            direction: Direction::MasterToMotor,
-                            read_write: ReadWrite::Write,
-                            attribute: Attribute::GeneralInfo, // Speed mode: 0x2E XX 00
-                            payload: vec![0x2E, mode, 0x00]
-                        };
-                        match session.send(&cmd).await {
-                            Ok(_) => println!(" ✅ Done!"),
-                            Err(e) => println!(" ❌ Failed: {}", e),
-                        }
-                        print!("> ");
-                        io::stdout().flush().unwrap();
-                    }
-                    Command::Kers(level) => {
-                        let label = match level {
-                            0 => "OFF",
-                            1 => "WEAK",
-                            2 => "MEDIUM",
-                            3 => "STRONG",
-                            _ => "UNKNOWN"
-                        };
-                        print!("\n⚡ Setting KERS (brake energy recovery) to {}...", label);
-                        io::stdout().flush().unwrap();
-                        match session.set_kers(level).await {
                             Ok(_) => println!(" ✅ Done!"),
                             Err(e) => println!(" ❌ Failed: {}", e),
                         }
@@ -577,9 +374,10 @@ async fn main() -> Result<()> {
     if logging {
         println!("📝 Closing log file...");
     }
+    
     println!("🔌 Disconnecting...");
     connection.disconnect().await?;
     println!("👋 Goodbye!");
-
+    
     Ok(())
 }

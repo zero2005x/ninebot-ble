@@ -1,8 +1,8 @@
-use btleplug::api::{Central, CharPropFlags, Manager as _, Peripheral as _, ScanFilter};
-use btleplug::platform::Manager;
 use std::error::Error;
 use std::time::Duration;
 use tokio::time;
+use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter, CharPropFlags};
+use btleplug::platform::Manager;
 // use uuid::Uuid;
 use futures::stream::StreamExt;
 use futures::FutureExt; // Import FutureExt for now_or_never
@@ -21,20 +21,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let manager = Manager::new().await?;
     let adapters = manager.adapters().await?;
-    let central = adapters
-        .into_iter()
-        .nth(0)
-        .expect("No Bluetooth adapters found");
+    let central = adapters.into_iter().nth(0).expect("No Bluetooth adapters found");
 
     central.start_scan(ScanFilter::default()).await?;
     time::sleep(Duration::from_secs(5)).await;
 
     let peripherals = central.peripherals().await?;
-    let device = peripherals
-        .into_iter()
+    let device = peripherals.into_iter()
         .find(|p| {
             if let Some(Ok(Some(props))) = p.properties().now_or_never() {
-                props.address.to_string().contains(&target_mac)
+                 props.address.to_string().contains(&target_mac)
             } else {
                 false
             }
@@ -55,12 +51,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Try to find ANY notify char and subscribe
-    let notify_chars: Vec<_> = chars
-        .iter()
-        .filter(|c| {
-            c.properties.contains(CharPropFlags::NOTIFY)
-                || c.properties.contains(CharPropFlags::INDICATE)
-        })
+    let notify_chars: Vec<_> = chars.iter()
+        .filter(|c| c.properties.contains(CharPropFlags::NOTIFY) || c.properties.contains(CharPropFlags::INDICATE))
         .collect();
 
     for c in &notify_chars {
@@ -85,22 +77,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ("Version", cmd_version),
     ];
 
-    let write_chars: Vec<_> = chars
-        .iter()
-        .filter(|c| {
-            c.properties.contains(CharPropFlags::WRITE)
-                || c.properties.contains(CharPropFlags::WRITE_WITHOUT_RESPONSE)
-        })
+    let write_chars: Vec<_> = chars.iter()
+        .filter(|c| c.properties.contains(CharPropFlags::WRITE) || c.properties.contains(CharPropFlags::WRITE_WITHOUT_RESPONSE))
         .collect();
 
     for c in &write_chars {
         for (name, cmd) in &commands {
             println!("Sending {} ({:02X?}) to {:?}...", name, cmd, c.uuid);
-            if let Err(e) = device
-                .write(c, cmd, btleplug::api::WriteType::WithoutResponse)
-                .await
-            {
-                println!("Failed to write to {:?}: {}", c.uuid, e);
+            if let Err(e) = device.write(c, cmd, btleplug::api::WriteType::WithoutResponse).await {
+                 println!("Failed to write to {:?}: {}", c.uuid, e);
             }
             // Wait for response or timeout while listening
             let sleep = time::sleep(Duration::from_millis(1000));

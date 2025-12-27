@@ -1,26 +1,33 @@
 extern crate uuid;
 
-pub mod clone_connection;
-pub mod consts;
 pub mod mi_crypto;
 pub mod protocol;
-pub mod session;
+pub mod consts;
+pub mod clone_connection;
 
 pub use clone_connection::ScooterConnection;
 
-mod connection;
-mod login;
 mod register;
 mod scanner;
+mod connection;
+mod login;
+mod session;
 
-pub use connection::ConnectionHelper;
-pub use login::LoginRequest;
-pub use mi_crypto::AuthToken;
-pub use register::RegistrationError;
-pub use register::RegistrationRequest;
-pub use scanner::ScannerError;
-pub use scanner::ScannerEvent;
-pub use scanner::ScooterScanner;
-pub use scanner::TrackedDevice;
+pub use register::RegistrationRequest as RegistrationRequest;
+pub use register::RegistrationError as RegistrationError;
+pub use mi_crypto::AuthToken as AuthToken;
+pub use login::LoginRequest as LoginRequest;
+pub use scanner::ScooterScanner as ScooterScanner;
+pub use scanner::ScannerError as ScannerError;
+pub use scanner::ScannerEvent as ScannerEvent;
+pub use scanner::TrackedDevice as TrackedDevice;
+pub use connection::ConnectionHelper as ConnectionHelper;
 
-pub use session::{BatteryInfo, GeneralInfo, MiSession, MotorInfo, Payload, TailLight};
+pub use session::{
+  MiSession as MiSession,
+  Payload,
+  MotorInfo,
+  GeneralInfo,
+  TailLight,
+  BatteryInfo
+};

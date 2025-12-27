@@ -1,11 +1,11 @@
-use anyhow::{anyhow, Context, Result};
-use btleplug::api::{CharPropFlags, Characteristic, Peripheral as _, WriteType};
-use btleplug::platform::Peripheral;
-use futures::stream::StreamExt;
 use std::collections::BTreeSet;
+use btleplug::api::{Characteristic, Peripheral as _, WriteType, CharPropFlags};
+use btleplug::platform::Peripheral;
+use uuid::Uuid;
+use futures::stream::StreamExt;
 use std::time::Duration;
 use tokio::time;
-use uuid::Uuid;
+use anyhow::{Result, anyhow, Context};
 
 // Service UUIDs
 const _NUS_SERVICE_UUID: Uuid = Uuid::from_u128(0x6e400001_b5a3_f393_e0a9_e50e24dcca9e);
@@ -30,29 +30,24 @@ impl ScooterConnection {
         if !device.is_connected().await? {
             device.connect().await?;
         }
-
+        
         // Wait for services to be discovered
         time::sleep(Duration::from_secs(2)).await;
         device.discover_services().await?;
 
         let chars = device.characteristics();
-
+        
         // Strategy: Find a working pair of TX (Write) and RX (Notify) characteristics
         // Priority 1: Nordic UART Service (NUS)
         // Priority 2: Xiaomi Service (FE95) with clone characteristics
-
+        
         let (tx, rx) = Self::find_characteristics(&chars)
             .ok_or_else(|| anyhow!("Could not find compatible UART characteristics"))?;
 
-        println!(
-            "Selected characteristics: TX={:?}, RX={:?}",
-            tx.uuid, rx.uuid
-        );
+        println!("Selected characteristics: TX={:?}, RX={:?}", tx.uuid, rx.uuid);
 
         // Subscribe to notifications
-        device
-            .subscribe(&rx)
-            .await
+        device.subscribe(&rx).await
             .context("Failed to subscribe to notification characteristic")?;
 
         Ok(Self {
@@ -62,9 +57,7 @@ impl ScooterConnection {
         })
     }
 
-    fn find_characteristics(
-        chars: &BTreeSet<Characteristic>,
-    ) -> Option<(Characteristic, Characteristic)> {
+    fn find_characteristics(chars: &BTreeSet<Characteristic>) -> Option<(Characteristic, Characteristic)> {
         // 1. Try Standard NUS
         let nus_tx = chars.iter().find(|c| c.uuid == NUS_TX_UUID);
         let nus_rx = chars.iter().find(|c| c.uuid == NUS_RX_UUID);
@@ -75,38 +68,29 @@ impl ScooterConnection {
 
         // 2. Try FE95 Service Candidates
         // Clones often use 00000001 for BOTH Write and Notify, or 00000001/00000002 pair
-        let fe95_chars: Vec<&Characteristic> = chars
-            .iter()
+        let fe95_chars: Vec<&Characteristic> = chars.iter()
             .filter(|c| c.service_uuid == MI_SERVICE_UUID)
             .collect();
 
         // Look for a char that supports NOTIFY
-        let notify_char = fe95_chars.iter().find(|c| {
-            c.properties.contains(CharPropFlags::NOTIFY)
-                || c.properties.contains(CharPropFlags::INDICATE)
-        });
+        let notify_char = fe95_chars.iter()
+            .find(|c| c.properties.contains(CharPropFlags::NOTIFY) || c.properties.contains(CharPropFlags::INDICATE));
 
         // Look for a char that supports WRITE or WRITE_WITHOUT_RESPONSE
-        let write_char = fe95_chars.iter().find(|c| {
-            c.properties.contains(CharPropFlags::WRITE)
-                || c.properties.contains(CharPropFlags::WRITE_WITHOUT_RESPONSE)
-        });
+        let write_char = fe95_chars.iter()
+            .find(|c| c.properties.contains(CharPropFlags::WRITE) || c.properties.contains(CharPropFlags::WRITE_WITHOUT_RESPONSE));
 
         if let (Some(tx), Some(rx)) = (write_char, notify_char) {
             return Some(((*tx).clone(), (*rx).clone()));
         }
-
+        
         // Fallback: Look for ANY char with Notify and ANY char with Write in the whole list
         // This is a "Hail Mary" for very weird clones
-        let any_notify = chars
-            .iter()
-            .find(|c| c.properties.contains(CharPropFlags::NOTIFY));
-        let any_write = chars
-            .iter()
-            .find(|c| c.properties.contains(CharPropFlags::WRITE_WITHOUT_RESPONSE));
+        let any_notify = chars.iter().find(|c| c.properties.contains(CharPropFlags::NOTIFY));
+        let any_write = chars.iter().find(|c| c.properties.contains(CharPropFlags::WRITE_WITHOUT_RESPONSE));
 
         if let (Some(tx), Some(rx)) = (any_write, any_notify) {
-            return Some((tx.clone(), rx.clone()));
+             return Some((tx.clone(), rx.clone()));
         }
 
         None
@@ -114,26 +98,20 @@ impl ScooterConnection {
 
     pub async fn send_command(&self, payload: &[u8]) -> Result<()> {
         let packet = self.build_packet(payload);
-
-        let write_type = if self
-            .tx_char
-            .properties
-            .contains(CharPropFlags::WRITE_WITHOUT_RESPONSE)
-        {
+        
+        let write_type = if self.tx_char.properties.contains(CharPropFlags::WRITE_WITHOUT_RESPONSE) {
             WriteType::WithoutResponse
         } else {
             WriteType::WithResponse
         };
 
-        self.device
-            .write(&self.tx_char, &packet, write_type)
-            .await?;
+        self.device.write(&self.tx_char, &packet, write_type).await?;
         Ok(())
     }
 
     pub async fn read_response(&self, timeout_duration: Duration) -> Result<Vec<u8>> {
         let mut notification_stream = self.device.notifications().await?;
-
+        
         let timeout = time::sleep(timeout_duration);
         tokio::pin!(timeout);
 
@@ -171,26 +149,26 @@ impl ScooterConnection {
         // Body: [03] [20] [01] [32] [02]
         let payload = vec![0x03, 0x20, 0x01, 0x32, 0x02];
         let response = self.transaction(&payload).await?;
-
+        
         // Response format: 55 AA [Len] [Dev] [Cmd] [Attr] [Val] [Val] [Cksum]
         // We expect the value to be in the payload.
         // Usually response payload is at index 7 or 8 depending on format.
         // Let's just return the last byte of the payload before checksum?
         // Or just return the whole response for now and let caller parse.
         // But the signature returns u8.
-
+        
         // Simple parsing: find the value.
         // If response is valid Xiaomi packet:
         // 55 AA L D C A V V CS CS
         // If we get a response, it's likely valid.
         // Battery percent is usually a single byte or u16.
         // Let's assume it's the byte at offset 6 or 7.
-
+        
         if response.len() > 6 {
-            // Just a guess based on typical offset
-            Ok(response[response.len() - 3])
+             // Just a guess based on typical offset
+             Ok(response[response.len() - 3]) 
         } else {
-            Ok(0)
+             Ok(0)
         }
     }
 
@@ -211,7 +189,7 @@ impl ScooterConnection {
 
         packet
     }
-
+    
     fn calculate_checksum(data: &[u8]) -> u16 {
         let sum: u32 = data.iter().map(|&b| b as u32).sum();
         ((sum ^ 0xFFFF) & 0xFFFF) as u16
