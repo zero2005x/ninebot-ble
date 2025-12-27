@@ -58,7 +58,7 @@ cargo run --example scanner
 輸出：
 
 ```
-INFO scanner: Found scooter nearby: MIScooter7353 with mac: D5:01:45:37:ED:FD
+INFO scanner: Found scooter nearby: MIScooter7353 with mac: C7:B8:DC:3B:A1:B2
 ```
 
 #### 2. 註冊（僅首次）
@@ -66,7 +66,7 @@ INFO scanner: Found scooter nearby: MIScooter7353 with mac: D5:01:45:37:ED:FD
 ⚠️ **警告：** 註冊會解除與其他應用程式的配對！
 
 ```bash
-cargo run --example register D5:01:45:37:ED:FD
+cargo run --example register C7:B8:DC:3B:A1:B2
 ```
 
 這會將認證 Token 儲存到 `.mi-token` 檔案。
@@ -74,13 +74,13 @@ cargo run --example register D5:01:45:37:ED:FD
 #### 3. 登入
 
 ```bash
-cargo run --example login D5:01:45:37:ED:FD
+cargo run --example login C7:B8:DC:3B:A1:B2
 ```
 
 #### 4. 讀取資訊
 
 ```bash
-cargo run --example about D5:01:45:37:ED:FD
+cargo run --example about C7:B8:DC:3B:A1:B2
 ```
 
 輸出：
@@ -94,7 +94,7 @@ Motor info: MotorInfo { speed_kmh: 0, total_distance_m: 1306083 }
 #### 5. 互動控制器
 
 ```bash
-cargo run --example controller D5:01:45:37:ED:FD
+cargo run --example controller C7:B8:DC:3B:A1:B2
 ```
 
 ## BLE 協議

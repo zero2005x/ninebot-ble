@@ -3,7 +3,7 @@ use std::time::Duration;
 use tokio::time;
 use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter};
 use btleplug::platform::Manager;
-use m365::clone_connection::ScooterConnection;
+use ninebot_ble::clone_connection::ScooterConnection;
 use futures::FutureExt;
 
 #[tokio::main]

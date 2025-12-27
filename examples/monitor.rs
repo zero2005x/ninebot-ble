@@ -6,7 +6,7 @@ use anyhow::Result;
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 
-use m365::{
+use ninebot_ble::{
     ScooterScanner, ConnectionHelper, LoginRequest, MiSession,
     AuthToken
 };

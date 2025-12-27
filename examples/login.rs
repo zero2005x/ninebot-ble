@@ -7,7 +7,7 @@ use tokio::fs::File;
 use tracing::Level;
 use std::env;
 use tracing_subscriber::fmt::format::FmtSpan;
-use m365::{
+use ninebot_ble::{
   AuthToken,
   ScooterScanner,
   LoginRequest,

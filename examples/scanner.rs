@@ -2,7 +2,7 @@ use tracing_subscriber;
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 use anyhow::Result;
-use m365::{ScooterScanner, ScannerEvent};
+use ninebot_ble::{ScooterScanner, ScannerEvent};
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<()> {

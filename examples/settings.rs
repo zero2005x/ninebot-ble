@@ -10,7 +10,7 @@ use tracing_subscriber::fmt::format::FmtSpan;
 use tokio::time;
 use std::time::Duration;
 
-use m365::{
+use ninebot_ble::{
   AuthToken,
   ScooterScanner,
   LoginRequest,

@@ -253,8 +253,36 @@ fn what_frame(bytes: &Vec<u8>) -> u16 {
 async fn setup_channels(device : &Peripheral) -> Result<(Characteristic, Characteristic, Characteristic, Characteristic)> {
   let mut retries = 5;
   loop {
+    // Windows BLE: verify connection is stable before discovering services
+    if !device.is_connected().await.unwrap_or(false) {
+      if retries == 0 {
+        return Err(anyhow!("Not connected"));
+      }
+      tracing::warn!("Device not connected, waiting... ({} retries left)", retries);
+      retries -= 1;
+      tokio::time::sleep(Duration::from_millis(2000)).await;
+      continue;
+    }
+    
+    // Additional stabilization delay before service discovery on Windows
+    #[cfg(target_os = "windows")]
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    
     match device.discover_services().await {
-      Ok(_) => break,
+      Ok(_) => {
+        // Verify we got services
+        let services = device.services();
+        if services.is_empty() {
+          if retries == 0 {
+            return Err(anyhow!("No services discovered"));
+          }
+          tracing::warn!("No services found, retrying... ({} retries left)", retries);
+          retries -= 1;
+          tokio::time::sleep(Duration::from_millis(2000)).await;
+          continue;
+        }
+        break;
+      },
       Err(e) => {
         if retries == 0 {
           return Err(e.into());

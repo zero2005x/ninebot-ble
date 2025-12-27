@@ -9,7 +9,7 @@ use std::env;
 use tokio::time;
 use std::time::Duration;
 use tracing_subscriber::fmt::format::FmtSpan;
-use m365::{
+use ninebot_ble::{
   AuthToken,
   ScooterScanner,
   LoginRequest,
@@ -65,7 +65,7 @@ async fn main() -> Result<()>{
   tracing::info!("Logged in with success, reading data...");
 
   loop {
-    read(&mut session).await;
+    let _ = read(&mut session).await;
     time::sleep(Duration::from_millis(1000)).await;
   }
 }

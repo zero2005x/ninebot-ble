@@ -10,7 +10,7 @@ use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 use chrono::{Local, DateTime};
 
-use m365::{
+use ninebot_ble::{
     ScooterScanner, ConnectionHelper, LoginRequest, MiSession,
     AuthToken, TailLight
 };
