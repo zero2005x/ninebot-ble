@@ -1,9 +1,9 @@
-# M365 BLE Library
+# ninebot-ble
 
-![MIT license](https://img.shields.io/github/license/zero2005x/m365)
-![Crates.io version](https://img.shields.io/crates/v/m365)
+![MIT license](https://img.shields.io/github/license/zero2005x/ninebot-ble)
+![Crates.io version](https://img.shields.io/crates/v/ninebot-ble)
 
-A lightweight Rust library to communicate with Xiaomi Mijia M365 scooter via BLE (Bluetooth Low Energy).
+A lightweight Rust library for BLE communication with Ninebot/Xiaomi electric scooters (M365, Mi Pro, etc.).
 
 > 📖 **[中文文档 / Chinese Documentation](./doc/README_zh.md)**
 
@@ -44,7 +44,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-m365 = "0.1"
+ninebot-ble = "0.1"
 ```
 
 ### Examples
@@ -197,7 +197,7 @@ Decrypt (Scooter → Client):
 ### Scanner
 
 ```rust
-use m365::scanner::ScooterScanner;
+use ninebot_ble::scanner::ScooterScanner;
 
 let scanner = ScooterScanner::new().await?;
 let scooters = scanner.scooters().await;
@@ -206,7 +206,7 @@ let scooters = scanner.scooters().await;
 ### Registration
 
 ```rust
-use m365::register::MiRegister;
+use ninebot_ble::register::MiRegister;
 
 let device = scanner.connect_to("D5:01:45:37:ED:FD").await?;
 let mut register = MiRegister::new(&device).await?;
@@ -216,7 +216,7 @@ let token = register.register().await?;
 ### Login & Session
 
 ```rust
-use m365::login::MiLogin;
+use ninebot_ble::login::MiLogin;
 
 let mut login = MiLogin::new(&device, &token).await?;
 let session = login.start().await?;

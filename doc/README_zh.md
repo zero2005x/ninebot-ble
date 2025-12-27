@@ -1,9 +1,9 @@
-# M365 藍牙低功耗函式庫
+# ninebot-ble
 
-![MIT license](https://img.shields.io/github/license/zero2005x/m365)
-![Crates.io version](https://img.shields.io/crates/v/m365)
+![MIT license](https://img.shields.io/github/license/zero2005x/ninebot-ble)
+![Crates.io version](https://img.shields.io/crates/v/ninebot-ble)
 
-透過 BLE（藍牙低功耗）與小米米家 M365 電動滑板車通訊的輕量級 Rust 函式庫。
+透過 BLE（藍牙低功耗）與九號/小米電動滑板車（M365、Mi Pro 等）通訊的輕量級 Rust 函式庫。
 
 > 📖 **[English Documentation](../README.md)**
 
@@ -44,7 +44,7 @@
 
 ```toml
 [dependencies]
-m365 = "0.1"
+ninebot-ble = "0.1"
 ```
 
 ### 使用範例
@@ -197,7 +197,7 @@ cargo run --example controller D5:01:45:37:ED:FD
 ### 掃描器
 
 ```rust
-use m365::scanner::ScooterScanner;
+use ninebot_ble::scanner::ScooterScanner;
 
 let scanner = ScooterScanner::new().await?;
 let scooters = scanner.scooters().await;
@@ -206,7 +206,7 @@ let scooters = scanner.scooters().await;
 ### 註冊
 
 ```rust
-use m365::register::MiRegister;
+use ninebot_ble::register::MiRegister;
 
 let device = scanner.connect_to("D5:01:45:37:ED:FD").await?;
 let mut register = MiRegister::new(&device).await?;
@@ -216,7 +216,7 @@ let token = register.register().await?;
 ### 登入與會話
 
 ```rust
-use m365::login::MiLogin;
+use ninebot_ble::login::MiLogin;
 
 let mut login = MiLogin::new(&device, &token).await?;
 let session = login.start().await?;

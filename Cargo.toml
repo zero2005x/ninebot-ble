@@ -1,11 +1,11 @@
 [package]
-name = "m365"
+name = "ninebot-ble"
 version = "0.1.2"
 edition = "2021"
 license-file = "LICENSE.md"
-description = "A lightweight rust library to receive BLE Xiaomi M365 scooter messages"
-keywords = ["m365", "xiaomi", "electric-scooter", "bluetooth", "ble"]
-repository = "https://github.com/zero2005x/m365"
+description = "A lightweight Rust library for BLE communication with Ninebot/Xiaomi electric scooters"
+keywords = ["ninebot", "xiaomi", "m365", "electric-scooter", "ble"]
+repository = "https://github.com/zero2005x/ninebot-ble"
 authors = ["zero2005x <zero2005x@gmail.com>"]
 readme = "README.md"
 
