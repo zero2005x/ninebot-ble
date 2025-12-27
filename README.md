@@ -197,28 +197,32 @@ Decrypt (Scooter → Client):
 ### Scanner
 
 ```rust
-use ninebot_ble::scanner::ScooterScanner;
+use ninebot_ble::ScooterScanner;
 
-let scanner = ScooterScanner::new().await?;
-let scooters = scanner.scooters().await;
+let mut scanner = ScooterScanner::new().await?;
+let scooter = scanner.wait_for(&mac_address).await?;
+let device = scanner.peripheral(&scooter).await?;
 ```
 
 ### Registration
 
 ```rust
-use ninebot_ble::register::MiRegister;
+use ninebot_ble::{RegistrationRequest, ConnectionHelper};
 
-let device = scanner.connect_to("D5:01:45:37:ED:FD").await?;
-let mut register = MiRegister::new(&device).await?;
-let token = register.register().await?;
+let connection = ConnectionHelper::new(&device);
+connection.reconnect().await?;
+let mut request = RegistrationRequest::new(&device).await?;
+let token = request.start().await?;
 ```
 
 ### Login & Session
 
 ```rust
-use ninebot_ble::login::MiLogin;
+use ninebot_ble::{LoginRequest, ConnectionHelper};
 
-let mut login = MiLogin::new(&device, &token).await?;
+let connection = ConnectionHelper::new(&device);
+connection.reconnect().await?;
+let mut login = LoginRequest::new(&device, &token).await?;
 let session = login.start().await?;
 
 // Read data
@@ -229,32 +233,39 @@ let motor = session.motor_info().await?;
 ## Project Structure
 
 ```
-m365/
+ninebot-ble/
 ├── src/
-│   ├── lib.rs           # Library entry point
-│   ├── scanner.rs       # BLE device scanner
-│   ├── connection.rs    # BLE connection management
-│   ├── protocol.rs      # MiAuth protocol implementation
-│   ├── register.rs      # Device registration
-│   ├── login.rs         # Authentication
-│   ├── mi_crypto.rs     # Cryptographic operations
-│   ├── consts.rs        # Constants
-│   └── session/         # Session commands
-│       ├── mi_session.rs
-│       ├── battery.rs
-│       ├── info.rs
-│       ├── settings.rs
-│       └── commands.rs
+│   ├── lib.rs              # Library entry point
+│   ├── scanner.rs          # BLE device scanner
+│   ├── connection.rs       # BLE connection management
+│   ├── clone_connection.rs # Alternative connection handler
+│   ├── protocol.rs         # MiAuth protocol implementation
+│   ├── register.rs         # Device registration
+│   ├── login.rs            # Authentication
+│   ├── mi_crypto.rs        # Cryptographic operations
+│   ├── consts.rs           # Constants
+│   └── session/            # Session commands
+│       ├── mod.rs          # Module exports
+│       ├── mi_session.rs   # Session management
+│       ├── battery.rs      # Battery info
+│       ├── info.rs         # General info
+│       ├── settings.rs     # Scooter settings
+│       ├── commands.rs     # Command definitions
+│       ├── payload.rs      # Payload parsing
+│       └── travel.rs       # Travel/distance info
 ├── examples/
-│   ├── scanner.rs       # Find scooters
-│   ├── register.rs      # Register with scooter
-│   ├── login.rs         # Login example
-│   ├── about.rs         # Read all info
-│   ├── settings.rs      # Change settings
-│   └── controller.rs    # Interactive controller
+│   ├── scanner.rs          # Find scooters
+│   ├── register.rs         # Register with scooter
+│   ├── login.rs            # Login example
+│   ├── about.rs            # Read all info
+│   ├── settings.rs         # Change settings
+│   ├── controller.rs       # Interactive controller
+│   ├── monitor.rs          # Monitoring mode
+│   └── speed.rs            # Speed monitoring
 └── tests/
     ├── crypto_test.rs
     ├── motor_info_test.rs
+    ├── responses_test.rs
     └── uart_test.rs
 ```
 

@@ -197,28 +197,32 @@ cargo run --example controller D5:01:45:37:ED:FD
 ### 掃描器
 
 ```rust
-use ninebot_ble::scanner::ScooterScanner;
+use ninebot_ble::ScooterScanner;
 
-let scanner = ScooterScanner::new().await?;
-let scooters = scanner.scooters().await;
+let mut scanner = ScooterScanner::new().await?;
+let scooter = scanner.wait_for(&mac_address).await?;
+let device = scanner.peripheral(&scooter).await?;
 ```
 
 ### 註冊
 
 ```rust
-use ninebot_ble::register::MiRegister;
+use ninebot_ble::{RegistrationRequest, ConnectionHelper};
 
-let device = scanner.connect_to("D5:01:45:37:ED:FD").await?;
-let mut register = MiRegister::new(&device).await?;
-let token = register.register().await?;
+let connection = ConnectionHelper::new(&device);
+connection.reconnect().await?;
+let mut request = RegistrationRequest::new(&device).await?;
+let token = request.start().await?;
 ```
 
 ### 登入與會話
 
 ```rust
-use ninebot_ble::login::MiLogin;
+use ninebot_ble::{LoginRequest, ConnectionHelper};
 
-let mut login = MiLogin::new(&device, &token).await?;
+let connection = ConnectionHelper::new(&device);
+connection.reconnect().await?;
+let mut login = LoginRequest::new(&device, &token).await?;
 let session = login.start().await?;
 
 // 讀取資料
@@ -229,32 +233,39 @@ let motor = session.motor_info().await?;
 ## 專案結構
 
 ```
-m365/
+ninebot-ble/
 ├── src/
-│   ├── lib.rs           # 函式庫入口
-│   ├── scanner.rs       # BLE 裝置掃描
-│   ├── connection.rs    # BLE 連線管理
-│   ├── protocol.rs      # MiAuth 協議實作
-│   ├── register.rs      # 裝置註冊
-│   ├── login.rs         # 認證
-│   ├── mi_crypto.rs     # 加密操作
-│   ├── consts.rs        # 常數
-│   └── session/         # 會話命令
-│       ├── mi_session.rs
-│       ├── battery.rs
-│       ├── info.rs
-│       ├── settings.rs
-│       └── commands.rs
+│   ├── lib.rs              # 函式庫入口
+│   ├── scanner.rs          # BLE 裝置掃描
+│   ├── connection.rs       # BLE 連線管理
+│   ├── clone_connection.rs # 替代連線處理器
+│   ├── protocol.rs         # MiAuth 協議實作
+│   ├── register.rs         # 裝置註冊
+│   ├── login.rs            # 認證
+│   ├── mi_crypto.rs        # 加密操作
+│   ├── consts.rs           # 常數
+│   └── session/            # 會話命令
+│       ├── mod.rs          # 模組匯出
+│       ├── mi_session.rs   # 會話管理
+│       ├── battery.rs      # 電池資訊
+│       ├── info.rs         # 一般資訊
+│       ├── settings.rs     # 滑板車設定
+│       ├── commands.rs     # 命令定義
+│       ├── payload.rs      # 封包解析
+│       └── travel.rs       # 行駛/里程資訊
 ├── examples/
-│   ├── scanner.rs       # 尋找滑板車
-│   ├── register.rs      # 註冊滑板車
-│   ├── login.rs         # 登入範例
-│   ├── about.rs         # 讀取所有資訊
-│   ├── settings.rs      # 變更設定
-│   └── controller.rs    # 互動控制器
+│   ├── scanner.rs          # 尋找滑板車
+│   ├── register.rs         # 註冊滑板車
+│   ├── login.rs            # 登入範例
+│   ├── about.rs            # 讀取所有資訊
+│   ├── settings.rs         # 變更設定
+│   ├── controller.rs       # 互動控制器
+│   ├── monitor.rs          # 監控模式
+│   └── speed.rs            # 速度監控
 └── tests/
     ├── crypto_test.rs
     ├── motor_info_test.rs
+    ├── responses_test.rs
     └── uart_test.rs
 ```
 
