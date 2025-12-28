@@ -7,7 +7,7 @@ use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use ninebot_ble::{
-    ScooterScanner, ConnectionHelper, LoginRequest, MiSession,
+    ScooterScanner, ConnectionHelper, LoginRequest, session::MiSession,
     AuthToken
 };
 

@@ -14,16 +14,20 @@ use ninebot_ble::{
   ConnectionHelper
 };
 
-async fn load_token() -> Result<AuthToken> {
+async fn load_token() -> Result<Option<AuthToken>> {
   let path = Path::new(".mi-token");
+  if !path.exists() {
+    tracing::warn!("No .mi-token file found");
+    return Ok(None);
+  }
   tracing::debug!("Opening token: {:?}", path);
 
   let mut f = File::open(path).await?;
   let mut buffer : AuthToken = [0; 12];
 
-  f.read(&mut buffer).await?;
+  f.read_exact(&mut buffer).await?;
 
-  Ok(buffer)
+  Ok(Some(buffer))
 }
 
 #[tokio::main(flavor = "multi_thread")]
@@ -39,6 +43,10 @@ async fn main() -> Result<()>{
   }
 
   let token = load_token().await?;
+  let Some(token) = token else {
+    println!("No .mi-token found. Run `cargo run --example register {} ` first.", args[1]);
+    return Ok(());
+  };
 
   let mac = BDAddr::from_str_delim(&args[1]).expect("Invalid mac address");
   tracing::info!("Searching scooter with address: {}", mac);

@@ -23,10 +23,12 @@ pub struct ScooterConnection {
     device: Peripheral,
     tx_char: Characteristic,
     rx_char: Characteristic,
+    #[allow(dead_code)]
+    is_m365: bool,
 }
 
 impl ScooterConnection {
-    pub async fn connect(device: &Peripheral) -> Result<Self> {
+    pub async fn connect(device: &Peripheral, is_m365: bool) -> Result<Self> {
         if !device.is_connected().await? {
             device.connect().await?;
         }
@@ -37,14 +39,15 @@ impl ScooterConnection {
 
         let chars = device.characteristics();
         
-        // Strategy: Find a working pair of TX (Write) and RX (Notify) characteristics
-        // Priority 1: Nordic UART Service (NUS)
-        // Priority 2: Xiaomi Service (FE95) with clone characteristics
-        
-        let (tx, rx) = Self::find_characteristics(&chars)
-            .ok_or_else(|| anyhow!("Could not find compatible UART characteristics"))?;
+        let (tx, rx) = if is_m365 {
+            Self::find_m365_characteristics(&chars)
+        } else {
+            Self::find_characteristics(&chars)
+        }
+        .ok_or_else(|| anyhow!("Could not find compatible UART characteristics"))?;
 
         println!("Selected characteristics: TX={:?}, RX={:?}", tx.uuid, rx.uuid);
+        println!("M365 mode: {}", is_m365);
 
         // Subscribe to notifications
         device.subscribe(&rx).await
@@ -54,6 +57,7 @@ impl ScooterConnection {
             device: device.clone(),
             tx_char: tx,
             rx_char: rx,
+            is_m365,
         })
     }
 
@@ -66,17 +70,37 @@ impl ScooterConnection {
             return Some((tx.clone(), rx.clone()));
         }
 
-        // 2. Try FE95 Service Candidates
-        // Clones often use 00000001 for BOTH Write and Notify, or 00000001/00000002 pair
+        // 2. Try FE95 Service Candidates (non-M365 clones)
+        Self::find_fe95_chars(chars)
+    }
+
+    fn find_m365_characteristics(chars: &BTreeSet<Characteristic>) -> Option<(Characteristic, Characteristic)> {
+        // M365 clones: FE95 service, 00000010 (write+notify) is primary
+        let m365_char_uuid = Uuid::from_u128(0x00000010_0000_1000_8000_00805f9b34fb);
+        let m365_tx = chars.iter().find(|c| 
+            c.service_uuid == MI_SERVICE_UUID && 
+            c.uuid == m365_char_uuid
+        );
+
+        if let Some(tx) = m365_tx {
+            if tx.properties.contains(CharPropFlags::WRITE_WITHOUT_RESPONSE) && 
+               tx.properties.contains(CharPropFlags::NOTIFY) {
+                return Some((tx.clone(), tx.clone()));
+            }
+        }
+
+        // Fallback to 00000019 or generic FE95
+        Self::find_fe95_chars(chars)
+    }
+
+    fn find_fe95_chars(chars: &BTreeSet<Characteristic>) -> Option<(Characteristic, Characteristic)> {
         let fe95_chars: Vec<&Characteristic> = chars.iter()
             .filter(|c| c.service_uuid == MI_SERVICE_UUID)
             .collect();
 
-        // Look for a char that supports NOTIFY
         let notify_char = fe95_chars.iter()
             .find(|c| c.properties.contains(CharPropFlags::NOTIFY) || c.properties.contains(CharPropFlags::INDICATE));
 
-        // Look for a char that supports WRITE or WRITE_WITHOUT_RESPONSE
         let write_char = fe95_chars.iter()
             .find(|c| c.properties.contains(CharPropFlags::WRITE) || c.properties.contains(CharPropFlags::WRITE_WITHOUT_RESPONSE));
 
@@ -84,8 +108,7 @@ impl ScooterConnection {
             return Some(((*tx).clone(), (*rx).clone()));
         }
         
-        // Fallback: Look for ANY char with Notify and ANY char with Write in the whole list
-        // This is a "Hail Mary" for very weird clones
+        // Fallback: ANY notify + write
         let any_notify = chars.iter().find(|c| c.properties.contains(CharPropFlags::NOTIFY));
         let any_write = chars.iter().find(|c| c.properties.contains(CharPropFlags::WRITE_WITHOUT_RESPONSE));
 

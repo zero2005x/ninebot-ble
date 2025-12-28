@@ -44,7 +44,7 @@
 
 ```toml
 [dependencies]
-ninebot-ble = "0.1"
+ninebot-ble =
 ```
 
 ### 使用範例

@@ -31,17 +31,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .expect("Scooter not found");
 
+    // Force non-M365 to use Nordic UART
+    let is_m365 = false;
+    println!("Forced non-M365 mode (Nordic UART): {}", is_m365);
+
     println!("Found device, connecting...");
     
-    let connection = ScooterConnection::connect(&device).await?;
+    let connection = ScooterConnection::connect(&device, is_m365).await?;
     println!("Connected and subscribed!");
 
-    // Optional: Try Unlock (Xbot/Lenzod)
-    println!("Sending Unlock commands...");
-    let _ = connection.send_command(&[0x5A]).await; // Xbot Z
-    time::sleep(Duration::from_millis(500)).await;
-    let _ = connection.send_command(&[0xA6, 0x12, 0x02, 0x10, 0x14]).await; // Lenzod
-    time::sleep(Duration::from_millis(500)).await;
+    // Skip unlock for M365 clones (direct protocol works)
+    if !is_m365 {
+        println!("Sending Unlock commands (non-M365)...");
+        let _ = connection.send_command(&[0x5A]).await; // Xbot Z
+        time::sleep(Duration::from_millis(500)).await;
+        let _ = connection.send_command(&[0xA6, 0x12, 0x02, 0x10, 0x14]).await; // Lenzod
+        time::sleep(Duration::from_millis(500)).await;
+    }
 
     println!("Reading Firmware Version...");
     match connection.get_version().await {

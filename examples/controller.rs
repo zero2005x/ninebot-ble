@@ -11,8 +11,8 @@ use tracing_subscriber::fmt::format::FmtSpan;
 use chrono::{Local, DateTime};
 
 use ninebot_ble::{
-    ScooterScanner, ConnectionHelper, LoginRequest, MiSession,
-    AuthToken, TailLight
+    ScooterScanner, ConnectionHelper, LoginRequest, session::MiSession,
+    AuthToken, session::TailLight
 };
 
 // Data structures for logging

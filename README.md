@@ -179,7 +179,7 @@ cargo run --example scanner
 Output:
 
 ```
-INFO scanner: Found scooter nearby: MIScooter7353 with mac: D5:01:45:37:ED:FD
+INFO scanner: Found scooter nearby: MIScooter7353 with mac: C7:B8:DC:3B:A1:B2
 ```
 
 #### 2. Register (First Time Only)
@@ -187,7 +187,7 @@ INFO scanner: Found scooter nearby: MIScooter7353 with mac: D5:01:45:37:ED:FD
 ⚠️ **Warning:** Registering unpairs the device from all other apps!
 
 ```bash
-cargo run --example register D5:01:45:37:ED:FD
+cargo run --example register C7:B8:DC:3B:A1:B2
 ```
 
 This saves the auth token to `.mi-token` file.
@@ -195,13 +195,13 @@ This saves the auth token to `.mi-token` file.
 #### 3. Login
 
 ```bash
-cargo run --example login D5:01:45:37:ED:FD
+cargo run --example login C7:B8:DC:3B:A1:B2
 ```
 
 #### 4. Read Information
 
 ```bash
-cargo run --example about D5:01:45:37:ED:FD
+cargo run --example about C7:B8:DC:3B:A1:B2
 ```
 
 Output:
@@ -215,7 +215,7 @@ Motor info: MotorInfo { speed_kmh: 0, total_distance_m: 1306083 }
 #### 5. Interactive Controller
 
 ```bash
-cargo run --example controller D5:01:45:37:ED:FD
+cargo run --example controller C7:B8:DC:3B:A1:B2
 ```
 
 ## BLE Protocol

@@ -15,7 +15,7 @@ use ninebot_ble::{
   ScooterScanner,
   LoginRequest,
   ConnectionHelper,
-  TailLight
+  session::TailLight
 };
 
 async fn load_token() -> Result<AuthToken> {

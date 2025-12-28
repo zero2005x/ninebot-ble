@@ -22,6 +22,8 @@ use std::str::FromStr;
 use crate::login::LoginRequest;
 #[cfg(target_os = "android")]
 use crate::mi_crypto::AuthToken;
+#[cfg(target_os = "android")]
+use hex;
 
 #[cfg(target_os = "android")]
 static RUNTIME: Lazy<Runtime> = Lazy::new(|| Runtime::new().unwrap());

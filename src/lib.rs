@@ -9,9 +9,17 @@ pub mod login;
 pub mod scanner;
 pub mod session;
 pub mod android_api;
+pub mod register;
+pub mod connection;
 
 // 引用
 pub use clone_connection::ScooterConnection;
+pub use scanner::{ScooterScanner, ScannerEvent};
+
+pub use mi_crypto::AuthToken;
+pub use register::{RegistrationRequest, RegistrationError};
+pub use login::LoginRequest;
+pub use connection::ConnectionHelper;
 
 #[cfg(target_os = "android")]
 use jni::JNIEnv;
@@ -40,12 +48,6 @@ use std::sync::{Mutex, Arc};
 use std::str::FromStr;
 #[cfg(target_os = "android")]
 use once_cell::sync::Lazy;
-#[cfg(target_os = "android")]
-use crate::scanner::ScooterScanner;
-#[cfg(target_os = "android")]
-use crate::login::LoginRequest;
-#[cfg(target_os = "android")]
-use crate::mi_crypto::AuthToken;
 
 // --- Globals & Types (Thread-Safe + Arc) ---
 
@@ -393,12 +395,14 @@ pub extern "C" fn Java_com_rokid_m365hud_BleManager_nativeConnect(
 }
 
 // 輔助函數
+#[cfg(target_os = "android")]
 async fn send_status(msg: &str) {
     if let Some(tx) = EVENT_TX.lock().unwrap().clone() {
         let _ = tx.send(BleEvent::Status(msg.to_string())).await;
     }
 }
 
+#[cfg(target_os = "android")]
 async fn send_data(speed: f64, battery: i32, temp: f64) {
     if let Some(tx) = EVENT_TX.lock().unwrap().clone() {
         let _ = tx.send(BleEvent::Data { speed, battery, temp }).await;
